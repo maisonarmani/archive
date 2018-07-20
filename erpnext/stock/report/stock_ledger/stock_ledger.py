@@ -96,6 +96,8 @@ def get_sle_conditions(filters):
 		conditions.append("voucher_no=%(voucher_no)s")
 	if filters.get("batch_no"):
 		conditions.append("batch_no=%(batch_no)s")
+	if filters.get("location"):
+		conditions.append("location=%(location)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 

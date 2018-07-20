@@ -70,8 +70,8 @@ def fetch_appraisal_template(source_name, target_doc=None):
 		"Appraisal Template": {
 			"doctype": "Appraisal",
 		},
-		"Appraisal Template Goal": {
-			"doctype": "Appraisal Goal",
+		"Appraisal Template Goals": {
+			"doctype": "Appraisal Goals",
 		}
 	}, target_doc)
 

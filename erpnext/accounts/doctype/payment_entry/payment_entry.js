@@ -73,7 +73,7 @@ frappe.ui.form.on('Payment Entry', {
 			} else if (frm.doc.party_type=="Supplier") {
 				var doctypes = ["Purchase Order", "Purchase Invoice", "Journal Entry"];
 			} else if (frm.doc.party_type=="Employee") {
-				var doctypes = ["Expense Claim", "Journal Entry"];
+				var doctypes = ["Expense Claim", "Journal Entry", 'Requisition'];
 			} else if (frm.doc.party_type=="Student") {
 				var doctypes = ["Fees"];
 			} else {
@@ -89,13 +89,13 @@ frappe.ui.form.on('Payment Entry', {
 			child = locals[cdt][cdn];
 			filters = {"docstatus": 1, "company": doc.company};
 			party_type_doctypes = ['Sales Invoice', 'Sales Order', 'Purchase Invoice', 
-				'Purchase Order', 'Expense Claim', 'Fees'];
+				'Purchase Order', 'Expense Claim', 'Fees', "Requisition"];
 
 			if (in_list(party_type_doctypes, child.reference_doctype)) {
 				filters[doc.party_type.toLowerCase()] = doc.party;
 			}
 
-			if(child.reference_doctype == "Expense Claim") {
+			if(child.reference_doctype == "Expense Claim" || child.reference_doctype == "Requisition" ) {
 				filters["status"] = "Approved";
 				filters["is_paid"] = 0;
 			}

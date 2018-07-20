@@ -23,6 +23,7 @@ def make_stock_entry(**args):
 	s = frappe.new_doc("Stock Entry")
 	args = frappe._dict(args)
 
+
 	if args.posting_date or args.posting_time:
 		s.set_posting_time = 1
 
@@ -74,6 +75,7 @@ def make_stock_entry(**args):
 	s.purchase_receipt_no = args.purchase_receipt_no
 	s.delivery_note_no = args.delivery_note_no
 	s.sales_invoice_no = args.sales_invoice_no
+	s.location = args.location
 	if not args.cost_center:
 		args.cost_center = frappe.get_value('Company', s.company, 'cost_center')
 

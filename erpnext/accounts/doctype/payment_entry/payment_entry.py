@@ -189,7 +189,7 @@ class PaymentEntry(AccountsController):
 		elif self.party_type == "Supplier":
 			valid_reference_doctypes = ("Purchase Order", "Purchase Invoice", "Journal Entry")
 		elif self.party_type == "Employee":
-			valid_reference_doctypes = ("Expense Claim", "Journal Entry")
+			valid_reference_doctypes = ("Expense Claim", "Journal Entry", "Requisition")
 
 		for d in self.get("references"):
 			if not d.allocated_amount:
@@ -211,7 +211,7 @@ class PaymentEntry(AccountsController):
 					else:
 						self.validate_journal_entry()
 
-					if d.reference_doctype in ("Sales Invoice", "Purchase Invoice", "Expense Claim", "Fees"):
+					if d.reference_doctype in ("Sales Invoice", "Purchase Invoice", "Expense Claim", "Fees","Requisition"):
 						if self.party_type == "Customer":
 							ref_party_account = ref_doc.debit_to
 						elif self.party_type == "Student":
@@ -653,7 +653,7 @@ def get_reference_details(reference_doctype, reference_name, party_account_curre
 		outstanding_amount = ref_doc.get("outstanding_amount")
 	elif reference_doctype != "Journal Entry":
 		if party_account_currency == ref_doc.company_currency:
-			if ref_doc.doctype == "Expense Claim":
+			if ref_doc.doctype in ("Expense Claim", "Requisition"):
 				total_amount = ref_doc.total_sanctioned_amount
 			else:
 				total_amount = ref_doc.base_grand_total
@@ -667,7 +667,7 @@ def get_reference_details(reference_doctype, reference_name, party_account_curre
 				get_exchange_rate(party_account_currency, ref_doc.company_currency, ref_doc.posting_date)
 
 		outstanding_amount = ref_doc.get("outstanding_amount") \
-			if reference_doctype in ("Sales Invoice", "Purchase Invoice", "Expense Claim") \
+			if reference_doctype in ("Sales Invoice", "Purchase Invoice", "Expense Claim", "Requisition") \
 			else flt(total_amount) - flt(ref_doc.advance_paid)
 	else:
 		# Get the exchange rate based on the posting date of the ref doc
@@ -692,7 +692,7 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 		party_type = "Customer"
 	elif dt in ("Purchase Invoice", "Purchase Order"):
 		party_type = "Supplier"
-	elif dt in ("Expense Claim"):
+	elif dt in ("Expense Claim", "Requisition"):
 		party_type = "Employee"
 	elif dt in ("Fees"):
 		party_type = "Student"
@@ -726,6 +726,9 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 	elif dt in ("Expense Claim"):
 		grand_total = doc.total_sanctioned_amount
 		outstanding_amount = doc.total_sanctioned_amount - doc.total_amount_reimbursed
+	elif dt in ("Requisition"):
+		grand_total = doc.total_sanctioned_amount
+		outstanding_amount = doc.total_sanctioned_amount - doc.total_amount_retired
 	elif dt == "Fees":
 		grand_total = doc.grand_total
 		outstanding_amount = doc.outstanding_amount

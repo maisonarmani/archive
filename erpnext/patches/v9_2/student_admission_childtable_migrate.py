@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import frappe
 
 def execute():
+	pass
 	frappe.reload_doc('schools', 'doctype', 'Student Admission Program')
 	frappe.reload_doctype('Student Admission')
 

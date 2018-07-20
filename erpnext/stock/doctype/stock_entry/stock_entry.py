@@ -408,7 +408,8 @@ class StockEntry(StockController):
 				sl_entries.append(self.get_sl_entries(d, {
 					"warehouse": cstr(d.t_warehouse),
 					"actual_qty": flt(d.transfer_qty),
-					"incoming_rate": flt(d.valuation_rate)
+					"incoming_rate": flt(d.valuation_rate),
+					"location": self.get('location')
 				}))
 
 		# On cancellation, make stock ledger entry for
