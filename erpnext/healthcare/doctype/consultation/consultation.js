@@ -23,11 +23,6 @@ frappe.ui.form.on('Consultation', {
 					patient: frm.doc.patient
 				},
 				callback: function (data) {
-					var age = null;
-					if(data.message.dob){
-						age = calculate_age(data.message.dob);
-					}
-					frappe.model.set_value(frm.doctype,frm.docname, "patient_age", age);
 					show_details(data.message);
 				}
 			});
@@ -139,6 +134,7 @@ var btn_create_vital_signs = function (frm) {
 	}
 	frappe.route_options = {
 		"patient": frm.doc.patient,
+		"appointment": frm.doc.appointment
 	};
 	frappe.new_doc("Vital Signs");
 };

@@ -17,6 +17,14 @@ frappe.ui.form.on("Production Order", {
 			}
 		});
 		
+		frm.set_query("source_warehouse", function() {
+			return {
+				filters: {
+					'company': frm.doc.company,
+				}
+			}
+		});
+		
 		frm.set_query("source_warehouse", "required_items", function() {
 			return {
 				filters: {
@@ -71,6 +79,10 @@ frappe.ui.form.on("Production Order", {
 				]
 			}
 		});
+
+		// formatter for production order operation
+		frm.set_indicator_formatter('operation',
+			function(doc) { return (frm.doc.qty==doc.completed_qty) ? "green" : "orange" });
 	},
 	
 	onload: function(frm) {
@@ -86,10 +98,6 @@ frappe.ui.form.on("Production Order", {
 			});
 			erpnext.production_order.set_default_warehouse(frm);
 		}
-
-		// formatter for production order operation
-		frm.set_indicator_formatter('operation',
-			function(doc) { return (frm.doc.qty==doc.completed_qty) ? "green" : "orange" });
 	},
 
 	refresh: function(frm) {
@@ -178,8 +186,11 @@ frappe.ui.form.on("Production Order", {
 					item: frm.doc.production_item,
 					project: frm.doc.project
 				},
+				freeze: true,
 				callback: function(r) {
 					if(r.message) {
+						frm.set_value('sales_order', "");
+						frm.trigger('set_sales_order');
 						erpnext.in_production_item_onchange = true;
 						$.each(["description", "stock_uom", "project", "bom_no"], function(i, field) {
 							frm.set_value(field, r.message[field]);
@@ -205,6 +216,7 @@ frappe.ui.form.on("Production Order", {
 		return frm.call({
 			doc: frm.doc,
 			method: "get_items_and_operations_from_bom",
+			freeze: true,
 			callback: function(r) {
 				if(r.message["set_scrap_wh_mandatory"]){
 					frm.toggle_reqd("scrap_warehouse", true);
@@ -226,6 +238,25 @@ frappe.ui.form.on("Production Order", {
 	before_submit: function(frm) {
 		frm.toggle_reqd(["fg_warehouse", "wip_warehouse"], true);
 		frm.fields_dict.required_items.grid.toggle_reqd("source_warehouse", true);
+	},
+
+	set_sales_order: function(frm) {
+		if(frm.doc.production_item) {
+			frappe.call({
+				method: "erpnext.manufacturing.doctype.production_order.production_order.query_sales_order",
+				args: { production_item: frm.doc.production_item },
+				callback: function(r) {
+					frm.set_query("sales_order", function() {
+						erpnext.in_production_item_onchange = true;
+						return {
+							filters: [
+								["Sales Order","name", "in", r.message]
+							]
+						}
+					});
+				}
+			});
+		}
 	}
 });
 

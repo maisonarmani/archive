@@ -2,6 +2,7 @@ import frappe
 from frappe import _
 
 def execute():
+	frappe.reload_doc('stock', 'doctype', 'item')
 	language = frappe.get_single("System Settings").language
 
 	if language and language.startswith('en'): return
@@ -13,7 +14,12 @@ def execute():
 	for domain in all_domains:
 		translated_domain = _(domain, lang=language)
 		if frappe.db.exists("Domain", translated_domain):
-			frappe.rename_doc("Domain", translated_domain, domain, ignore_permissions=True, merge=True)
+			#if domain already exists merged translated_domain and domain
+			merge = False
+			if frappe.db.exists("Domain", domain):
+				merge=True
+
+			frappe.rename_doc("Domain", translated_domain, domain, ignore_permissions=True, merge=merge)
 
 	domain_settings = frappe.get_single("Domain Settings")
 	active_domains = [d.domain for d in domain_settings.active_domains]

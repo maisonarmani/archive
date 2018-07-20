@@ -8,14 +8,18 @@ from frappe.utils import add_days, cint, cstr, flt, getdate, rounded, date_diff,
 from frappe.model.naming import make_autoname
 
 from frappe import msgprint, _
-from erpnext.hr.doctype.process_payroll.process_payroll import get_start_end_dates
+from erpnext.hr.doctype.payroll_entry.payroll_entry import get_start_end_dates
 from erpnext.hr.doctype.employee.employee import get_holiday_list_for_employee
 from erpnext.utilities.transaction_base import TransactionBase
 from frappe.utils.background_jobs import enqueue
 
 class SalarySlip(TransactionBase):
+	def __init__(self, *args, **kwargs):
+		super(SalarySlip, self).__init__(*args, **kwargs)
+		self.series = 'Sal Slip/{0}/.#####'.format(self.employee)
+
 	def autoname(self):
-		self.name = make_autoname('Sal Slip/' +self.employee + '/.#####')
+		self.name = make_autoname(self.series)
 
 	def validate(self):
 		self.status = self.get_status()
@@ -156,9 +160,10 @@ class SalarySlip(TransactionBase):
 				})
 
 	def get_date_details(self):
-		date_details = get_start_end_dates(self.payroll_frequency, self.start_date or self.posting_date)
-		self.start_date = date_details.start_date
-		self.end_date = date_details.end_date
+		if not self.end_date:
+			date_details = get_start_end_dates(self.payroll_frequency, self.start_date or self.posting_date)
+			self.start_date = date_details.start_date
+			self.end_date = date_details.end_date
 
 	def check_sal_struct(self, joining_date, relieving_date):
 		cond = ''
@@ -410,12 +415,16 @@ class SalarySlip(TransactionBase):
 		else:
 			self.set_status()
 			self.update_status(self.name)
-			if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")):
+			if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")) and not frappe.flags.via_payroll_entry:
 				self.email_salary_slip()
 
 	def on_cancel(self):
 		self.set_status()
 		self.update_status()
+
+	def on_trash(self):
+		from frappe.model.naming import revert_series_if_last
+		revert_series_if_last(self.series, self.name)
 
 	def email_salary_slip(self):
 		receiver = frappe.db.get_value("Employee", self.employee, "prefered_email")

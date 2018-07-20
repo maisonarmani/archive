@@ -5,13 +5,14 @@ from __future__ import unicode_literals
 import unittest
 import frappe
 
-from frappe.test_runner import make_test_records
+from frappe.test_runner import make_test_objects
 from erpnext.controllers.item_variant import (create_variant, ItemVariantExistsError,
 	InvalidItemAttributeValueError, get_variant)
 from erpnext.stock.doctype.item.item import StockExistsForTemplate
 
 from frappe.model.rename_doc import rename_doc
 from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
+from erpnext.stock.get_item_details import get_item_details
 
 test_ignore = ["BOM"]
 test_dependencies = ["Warehouse"]
@@ -53,7 +54,9 @@ class TestItem(unittest.TestCase):
 		return item
 
 	def test_get_item_details(self):
-		from erpnext.stock.get_item_details import get_item_details
+		# delete modified item price record and make as per test_records
+		frappe.db.sql("""delete from `tabItem Price`""")
+
 		to_check = {
 			"item_code": "_Test Item",
 			"item_name": "_Test Item",
@@ -76,7 +79,7 @@ class TestItem(unittest.TestCase):
 			"conversion_factor": 1.0,
 		}
 
-		make_test_records("Item Price")
+		make_test_objects("Item Price")
 
 		details = get_item_details({
 			"item_code": "_Test Item",
@@ -88,7 +91,10 @@ class TestItem(unittest.TestCase):
 			"price_list_currency": "_Test Currency",
 			"plc_conversion_rate": 1,
 			"order_type": "Sales",
-			"customer": "_Test Customer"
+			"customer": "_Test Customer",
+			"conversion_factor": 1,
+			"price_list_uom_dependant": 1,
+			"ignore_pricing_rule": 1
 		})
 
 		for key, value in to_check.iteritems():
@@ -122,7 +128,7 @@ class TestItem(unittest.TestCase):
 
 	def test_copy_fields_from_template_to_variants(self):
 		frappe.delete_doc_if_exists("Item", "_Test Variant Item-XL", force=1)
-		
+
 		fields = [{'field_name': 'item_group'}, {'field_name': 'is_stock_item'}]
 		allow_fields = [d.get('field_name') for d in fields]
 		set_item_variant_settings(fields)
@@ -285,12 +291,6 @@ def make_item_variant():
 		variant.item_code = "_Test Variant Item-S"
 		variant.item_name = "_Test Variant Item-S"
 		variant.save()
-
-def get_total_projected_qty(item):
-	total_qty = frappe.db.sql(""" select sum(projected_qty) as projected_qty from tabBin
-		where item_code = %(item)s""", {'item': item}, as_dict=1)
-
-	return total_qty[0].projected_qty if total_qty else 0.0
 
 test_records = frappe.get_test_records('Item')
 

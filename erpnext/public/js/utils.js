@@ -105,6 +105,12 @@ $.extend(erpnext.utils, {
 		}
 	},
 
+	get_party_name: function(party_type) {
+		var dict = {'Customer': 'customer_name', 'Supplier': 'supplier_name', 'Employee': 'employee_name',
+			'Member': 'member_name'};
+		return dict[party_type];
+	},
+
 	copy_value_in_all_row: function(doc, dt, dn, table_fieldname, fieldname) {
 		var d = locals[dt][dn];
 		if(d[fieldname]){
@@ -245,6 +251,7 @@ erpnext.utils.map_current_doc = function(opts) {
 			callback: function(r) {
 				if(!r.exc) {
 					var doc = frappe.model.sync(r.message);
+					cur_frm.dirty();
 					cur_frm.refresh();
 				}
 			}
@@ -260,7 +267,7 @@ erpnext.utils.map_current_doc = function(opts) {
 			action: function(selections, args) {
 				let values = selections;
 				if(values.length === 0){
-					frappe.msgprint(__("Please select Quotations"))
+					frappe.msgprint(__("Please select {0}", [opts.source_doctype]))
 					return;
 				}
 				opts.source_name = values;

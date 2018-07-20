@@ -41,7 +41,7 @@ def before_tests():
 			"email"				:"test@erpnext.com",
 			"password"			:"test",
 			"chart_of_accounts" : "Standard",
-			"domain"			: "Manufacturing"
+			"domains"			: ["Manufacturing"],
 		})
 
 	frappe.db.sql("delete from `tabLeave Allocation`")
@@ -95,7 +95,7 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None):
 
 		if not value:
 			import requests
-			api_url = "http://api.fixer.io/{0}".format(transaction_date)
+			api_url = "https://frankfurter.erpnext.org/{0}".format(transaction_date)
 			response = requests.get(api_url, params={
 				"base": from_currency,
 				"symbols": to_currency
@@ -120,3 +120,18 @@ def enable_all_roles_and_domains():
 	frappe.get_single('Domain Settings').set_active_domains(\
 		[d.name for d in domains])
 	add_all_roles_to('Administrator')
+
+
+def insert_record(records):
+	for r in records:
+		doc = frappe.new_doc(r.get("doctype"))
+		doc.update(r)
+		try:
+			doc.insert(ignore_permissions=True)
+		except frappe.DuplicateEntryError, e:
+			# pass DuplicateEntryError and continue
+			if e.args and e.args[0]==doc.doctype and e.args[1]==doc.name:
+				# make sure DuplicateEntryError is for the exact same doc and not a related doc
+				pass
+			else:
+				raise

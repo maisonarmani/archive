@@ -23,12 +23,22 @@ cur_frm.cscript.refresh = function (doc, cdt, cdn) {
 
 }
 
+<<<<<<< HEAD
 cur_frm.cscript.kra_template = function (doc, dt, dn) {
     erpnext.utils.map_current_doc({
         method: "erpnext.hr.doctype.appraisal.appraisal.fetch_appraisal_template",
         source_name: cur_frm.doc.kra_template,
         frm: cur_frm
     });
+=======
+cur_frm.cscript.kra_template = function(doc, dt, dn) {
+	doc.goals = [];
+	erpnext.utils.map_current_doc({
+		method: "erpnext.hr.doctype.appraisal.appraisal.fetch_appraisal_template",
+		source_name: cur_frm.doc.kra_template,
+		frm: cur_frm
+	});
+>>>>>>> 8ca5940f76b2ebbd9f4a558ebe9d90334bff2628
 }
 
 cur_frm.cscript.pull_timesheet_values = function (doc, cdt, cdn) {

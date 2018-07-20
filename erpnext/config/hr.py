@@ -38,13 +38,13 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Job Applicant",
-					"description": _("Applicant for a Job."),
+					"name": "Job Opening",
+					"description": _("Opening for a Job."),
 				},
 				{
 					"type": "doctype",
-					"name": "Job Opening",
-					"description": _("Opening for a Job."),
+					"name": "Job Applicant",
+					"description": _("Applicant for a Job."),
 				},
 				{
 					"type": "doctype",
@@ -101,8 +101,8 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Process Payroll",
-					"label": _("Process Payroll"),
+					"name": "Payroll Entry",
+					"label": _("Payroll Entry"),
 					"description":_("Generate Salary Slips"),
 					"hide_count": True
 				},
@@ -123,6 +123,11 @@ def get_data():
 		{
 			"label": _("Expense Claims"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Employee Advance",
+					"description": _("Manage advance amount given to the Employee"),
+				},
 				{
 					"type": "doctype",
 					"name": "Expense Claim",

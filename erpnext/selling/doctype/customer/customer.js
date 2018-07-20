@@ -24,6 +24,21 @@ frappe.ui.form.on("Customer", {
 				filters: filters
 			}
 		});
+
+		frm.set_query('customer_primary_contact', function(doc) {
+			return {
+				query: "erpnext.selling.doctype.customer.customer.get_customer_primary_contact",
+				filters: {
+					'customer': doc.name
+				}
+			}
+		})
+	},
+	customer_primary_contact: function(frm){
+		if(!frm.doc.customer_primary_contact){
+			frm.set_value("mobile_no", "");
+			frm.set_value("email_id", "");
+		}
 	},
 	refresh: function(frm) {
 		if(frappe.defaults.get_default("cust_master_name")!="Naming Series") {
@@ -34,7 +49,7 @@ frappe.ui.form.on("Customer", {
 
 		frappe.dynamic_link = {doc: frm.doc, fieldname: 'name', doctype: 'Customer'}
 
-		frm.toggle_display(['address_html','contact_html'], !frm.doc.__islocal);
+		frm.toggle_display(['address_html','contact_html','primary_contact_detail'], !frm.doc.__islocal);
 
 		if(!frm.doc.__islocal) {
 			frappe.contacts.render_address_and_contact(frm);

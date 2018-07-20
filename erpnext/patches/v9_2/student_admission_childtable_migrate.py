@@ -5,9 +5,17 @@ from __future__ import unicode_literals
 import frappe
 
 def execute():
+<<<<<<< HEAD:erpnext/patches/v9_2/student_admission_childtable_migrate.py
 	pass
 	frappe.reload_doc('schools', 'doctype', 'Student Admission Program')
 	frappe.reload_doctype('Student Admission')
+=======
+	# 'Schools' module changed to the 'Education'
+	# frappe.reload_doc('schools', 'doctype', 'Student Admission Program')
+	# frappe.reload_doc('schools', 'doctype', 'student_admission')
+	frappe.reload_doc('education', 'doctype', 'Student Admission Program')
+	frappe.reload_doc('education', 'doctype', 'student_admission')
+>>>>>>> 8ca5940f76b2ebbd9f4a558ebe9d90334bff2628:erpnext/patches/v9_0/student_admission_childtable_migrate.py
 
 	if "program" not in frappe.db.get_table_columns("Student Admission"):
 		return

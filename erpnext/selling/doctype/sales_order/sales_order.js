@@ -13,6 +13,10 @@ frappe.ui.form.on("Sales Order", {
 			'Project': 'Project'
 		}
 		frm.add_fetch('customer', 'tax_id', 'tax_id');
+
+		// formatter for material request item
+		frm.set_indicator_formatter('item_code',
+			function(doc) { return (doc.stock_qty<=doc.delivered_qty) ? "green" : "orange" })
 	},
 	onload: function(frm) {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
@@ -28,30 +32,43 @@ frappe.ui.form.on("Sales Order", {
 			}
 		});
 
-		// formatter for material request item
-		frm.set_indicator_formatter('item_code',
-			function(doc) { return (doc.stock_qty<=doc.delivered_qty) ? "green" : "orange" })
-
 		erpnext.queries.setup_warehouse_query(frm);
 	},
-	
+
 	delivery_date: function(frm) {
 		$.each(frm.doc.items || [], function(i, d) {
 			if(!d.delivery_date) d.delivery_date = frm.doc.delivery_date;
 		});
 		refresh_field("items");
+	},
+
+	onload_post_render: function(frm) {
+		frm.get_field("items").grid.set_multiple_add("item_code", "qty");
 	}
 });
 
 frappe.ui.form.on("Sales Order Item", {
+	item_code: function(frm,cdt,cdn) {
+		var row = locals[cdt][cdn];
+		if (frm.doc.delivery_date) {
+			row.delivery_date = frm.doc.delivery_date;
+			refresh_field("delivery_date", cdn, "items");
+		} else {
+			frm.script_manager.copy_from_first_row("items", row, ["delivery_date"]);
+		}
+	},
 	delivery_date: function(frm, cdt, cdn) {
 		if(!frm.doc.delivery_date) {
 			erpnext.utils.copy_value_in_all_row(frm.doc, cdt, cdn, "items", "delivery_date");
 		}
-	}	
+	}
 });
 
 erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend({
+	onload: function(doc, dt, dn) {
+		this._super();
+	},
+
 	refresh: function(doc, dt, dn) {
 		var me = this;
 		this._super();
@@ -83,14 +100,14 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 
 				if (this.frm.has_perm("submit")) {
 					// close
-					if(flt(doc.per_delivered, 2) < 100 || flt(doc.per_billed) < 100) {
+					if(flt(doc.per_delivered, 6) < 100 || flt(doc.per_billed) < 100) {
 						this.frm.add_custom_button(__('Close'),
 							function() { me.close_sales_order() }, __("Status"))
 					}
 				}
 
 				// delivery note
-				if(flt(doc.per_delivered, 2) < 100 && ["Sales", "Shopping Cart"].indexOf(doc.order_type)!==-1 && allow_delivery) {
+				if(flt(doc.per_delivered, 6) < 100 && ["Sales", "Shopping Cart"].indexOf(doc.order_type)!==-1 && allow_delivery) {
 					this.frm.add_custom_button(__('Delivery'),
 						function() { me.make_delivery_note_based_on_delivery_date(); }, __("Make"));
 					this.frm.add_custom_button(__('Production Order'),
@@ -100,20 +117,20 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 				}
 
 				// sales invoice
-				if(flt(doc.per_billed, 2) < 100) {
+				if(flt(doc.per_billed, 6) < 100) {
 					this.frm.add_custom_button(__('Invoice'),
 						function() { me.make_sales_invoice() }, __("Make"));
 				}
 
 				// material request
 				if(!doc.order_type || ["Sales", "Shopping Cart"].indexOf(doc.order_type)!==-1
-					&& flt(doc.per_delivered, 2) < 100) {
+					&& flt(doc.per_delivered, 6) < 100) {
 					this.frm.add_custom_button(__('Material Request'),
 						function() { me.make_material_request() }, __("Make"));
 				}
 
 				// make purchase order
-				if(flt(doc.per_delivered, 2) < 100 && allow_purchase) {
+				if(flt(doc.per_delivered, 6) < 100 && allow_purchase) {
 					this.frm.add_custom_button(__('Purchase Order'),
 						function() { me.make_purchase_order() }, __("Make"));
 				}
@@ -199,7 +216,7 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 					});
 					return;
 				}
-				else if(!r.message.every(function(d) { return !!d.pending_qty })) {
+				else if(!r.message) {
 					frappe.msgprint({
 						title: __('Production Order not created'),
 						message: __('Production Order already created for all items with BOM'),
@@ -219,7 +236,10 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 									}},
 								{fieldtype:'Float', fieldname:'pending_qty', reqd: 1,
 									label: __('Qty'), in_list_view:1},
+								{fieldtype:'Data', fieldname:'sales_order_item', reqd: 1,
+									label: __('Sales Order Item'), hidden:1}
 							],
+							data: r.message,
 							get_data: function() {
 								return r.message
 							}
@@ -284,21 +304,21 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 
 	make_delivery_note_based_on_delivery_date: function() {
 		var me = this;
-		
+
 		var delivery_dates = [];
 		$.each(this.frm.doc.items || [], function(i, d) {
 			if(!delivery_dates.includes(d.delivery_date)) {
 				delivery_dates.push(d.delivery_date);
 			}
 		});
-		
+
 		var item_grid = this.frm.fields_dict["items"].grid;
 		if(!item_grid.get_selected().length && delivery_dates.length > 1) {
 			var dialog = new frappe.ui.Dialog({
 				title: __("Select Items based on Delivery Date"),
 				fields: [{fieldtype: "HTML", fieldname: "dates_html"}]
 			});
-			
+
 			var html = $(`
 				<div style="border: 1px solid #d1d8dd">
 					<div class="list-item list-item--head">
@@ -327,7 +347,7 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 					.map((i, el) => $(el).attr('data-date')).toArray();
 
 				if(!dates) return;
-				
+
 				$.each(dates, function(i, d) {
 					$.each(item_grid.grid_rows || [], function(j, row) {
 						if(row.doc.delivery_date == d) {
@@ -439,17 +459,6 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 		if(cint(frappe.boot.notification_settings.sales_order)) {
 			this.frm.email_doc(frappe.boot.notification_settings.sales_order_message);
 		}
-	},
-
-	items_add: function(doc, cdt, cdn) {
-		var row = frappe.get_doc(cdt, cdn);
-		if(doc.delivery_date) {
-			row.delivery_date = doc.delivery_date;
-			refresh_field("delivery_date", cdn, "items");
-		} else {
-			this.frm.script_manager.copy_from_first_row("items", row, ["delivery_date"]);
-		}
 	}
 });
-
 $.extend(cur_frm.cscript, new erpnext.selling.SalesOrderController({frm: cur_frm}));

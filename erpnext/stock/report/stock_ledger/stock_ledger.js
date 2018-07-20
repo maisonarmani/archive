@@ -35,7 +35,12 @@ frappe.query_reports["Stock Ledger"] = {
 			"fieldname":"item_code",
 			"label": __("Item"),
 			"fieldtype": "Link",
-			"options": "Item"
+			"options": "Item",
+			"get_query": function() {
+				return {
+					query: "erpnext.controllers.queries.item_query"
+				}
+			}
 		},
 		{
 			"fieldname":"item_group",
@@ -61,10 +66,17 @@ frappe.query_reports["Stock Ledger"] = {
 			"fieldtype": "Data"
 		},
 		{
+<<<<<<< HEAD
 			"fieldname":"location",
 			"label": __("Location"),
 			"fieldtype": "Link",
 			"options": "Location"
+=======
+			"fieldname":"project",
+			"label": __("Project"),
+			"fieldtype": "Link",
+			"options": "Project"
+>>>>>>> 8ca5940f76b2ebbd9f4a558ebe9d90334bff2628
 		}
 	]
 }

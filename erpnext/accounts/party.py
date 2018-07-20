@@ -4,12 +4,11 @@
 from __future__ import unicode_literals
 
 import frappe
-import datetime
 from frappe import _, msgprint, scrub
 from frappe.defaults import get_user_permissions
 from frappe.model.utils import get_fetch_values
-from frappe.utils import (add_days, getdate, formatdate, get_first_day, date_diff,
-	add_years, get_timestamp, nowdate, flt)
+from frappe.utils import (add_days, getdate, formatdate, date_diff,
+	add_years, get_timestamp, nowdate, flt, add_months, get_last_day)
 from frappe.contacts.doctype.address.address import (get_address_display,
 	get_default_address, get_company_address)
 from frappe.contacts.doctype.contact.contact import get_contact_details, get_default_contact
@@ -21,8 +20,8 @@ from erpnext import get_default_currency, get_company_currency
 class DuplicatePartyAccountError(frappe.ValidationError): pass
 
 @frappe.whitelist()
-def get_party_details(party=None, account=None, party_type="Customer", company=None,
-	posting_date=None, price_list=None, currency=None, doctype=None, ignore_permissions=False):
+def get_party_details(party=None, account=None, party_type="Customer", company=None, posting_date=None,
+	price_list=None, currency=None, doctype=None, ignore_permissions=False, fetch_payment_terms_template=True):
 
 	if not party:
 		return {}
@@ -31,10 +30,10 @@ def get_party_details(party=None, account=None, party_type="Customer", company=N
 		frappe.throw(_("{0}: {1} does not exists").format(party_type, party))
 
 	return _get_party_details(party, account, party_type,
-		company, posting_date, price_list, currency, doctype, ignore_permissions)
+		company, posting_date, price_list, currency, doctype, ignore_permissions, fetch_payment_terms_template)
 
-def _get_party_details(party=None, account=None, party_type="Customer", company=None,
-	posting_date=None, price_list=None, currency=None, doctype=None, ignore_permissions=False):
+def _get_party_details(party=None, account=None, party_type="Customer", company=None, posting_date=None,
+	price_list=None, currency=None, doctype=None, ignore_permissions=False, fetch_payment_terms_template=True):
 
 	out = frappe._dict(set_account_and_due_date(party, account, party_type, company, posting_date, doctype))
 
@@ -51,6 +50,9 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 	set_other_values(out, party, party_type)
 	set_price_list(out, party, party_type, price_list)
 	out["taxes_and_charges"] = set_taxes(party.name, party_type, posting_date, company, out.customer_group, out.supplier_type)
+
+	if fetch_payment_terms_template:
+		out["payment_terms_template"] = get_pyt_term_template(party.name, party_type, company)
 
 	if not out.get("currency"):
 		out["currency"] = currency
@@ -262,51 +264,56 @@ def validate_party_accounts(doc):
 
 		if doc.get("default_currency") and party_account_currency and company_default_currency:
 			if doc.default_currency != party_account_currency and doc.default_currency != company_default_currency:
-				frappe.throw(_("Billing currency must be equal to either default comapany's currency or party account currency"))
+				frappe.throw(_("Billing currency must be equal to either default company's currency or party account currency"))
+
 
 @frappe.whitelist()
-def get_due_date(posting_date, party_type, party, company):
-	"""Set Due Date = Posting Date + Credit Days"""
+def get_due_date(posting_date, party_type, party, company=None):
+	"""Get due date from `Payment Terms Template`"""
 	due_date = None
 	if posting_date and party:
 		due_date = posting_date
-		credit_days_based_on, credit_days = get_credit_days(party_type, party, company)
-		if credit_days_based_on == "Fixed Days" and credit_days:
-			due_date = add_days(posting_date, credit_days)
-		elif credit_days_based_on == "Last Day of the Next Month":
-			due_date = (get_first_day(posting_date, 0, 2) + datetime.timedelta(-1)).strftime("%Y-%m-%d")
+		template_name = get_pyt_term_template(party, party_type, company)
+
+		if template_name:
+			due_date = get_due_date_from_template(template_name, posting_date).strftime("%Y-%m-%d")
+		else:
+			if party_type == "Supplier":
+				supplier_type = frappe.db.get_value(party_type, party, fieldname="supplier_type")
+				template_name = frappe.db.get_value("Supplier Type", supplier_type, fieldname="payment_terms")
+				if template_name:
+					due_date = get_due_date_from_template(template_name, posting_date).strftime("%Y-%m-%d")
 
 	return due_date
 
-def get_credit_days(party_type, party, company):
-	credit_days = 0
-	if party_type and party:
-		if party_type == "Customer":
-			credit_days_based_on, credit_days, customer_group = \
-				frappe.db.get_value(party_type, party, ["credit_days_based_on", "credit_days", "customer_group"])
+
+def get_due_date_from_template(template_name, posting_date):
+	"""
+	Inspects all `Payment Term`s from the a `Payment Terms Template` and returns the due
+	date after considering all the `Payment Term`s requirements.
+	:param template_name: Name of the `Payment Terms Template`
+	:return: String representing the calculated due date
+	"""
+	due_date = getdate(posting_date)
+	template = frappe.get_doc('Payment Terms Template', template_name)
+
+	for term in template.terms:
+		if term.due_date_based_on == 'Day(s) after invoice date':
+			due_date = max(due_date, add_days(due_date, term.credit_days))
+		elif term.due_date_based_on == 'Day(s) after the end of the invoice month':
+			due_date = max(due_date, add_days(get_last_day(due_date), term.credit_days))
 		else:
-			credit_days_based_on, credit_days, supplier_type = \
-				frappe.db.get_value(party_type, party, ["credit_days_based_on", "credit_days", "supplier_type"])
+			due_date = max(due_date, add_months(get_last_day(due_date), term.credit_months))
 
-	if not credit_days_based_on:
-		if party_type == "Customer" and customer_group:
-			credit_days_based_on, credit_days = \
-				frappe.db.get_value("Customer Group", customer_group, ["credit_days_based_on", "credit_days"])
-		elif party_type == "Supplier" and supplier_type:
-			credit_days_based_on, credit_days = \
-				frappe.db.get_value("Supplier Type", supplier_type, ["credit_days_based_on", "credit_days"])
+	return due_date
 
-	if not credit_days_based_on:
-		credit_days_based_on, credit_days = \
-			frappe.db.get_value("Company", company, ["credit_days_based_on", "credit_days"])
-
-	return credit_days_based_on, credit_days
-
-def validate_due_date(posting_date, due_date, party_type, party, company):
+def validate_due_date(posting_date, due_date, party_type, party, company=None, template_name=None):
 	if getdate(due_date) < getdate(posting_date):
 		frappe.throw(_("Due Date cannot be before Posting Date"))
 	else:
-		default_due_date = get_due_date(posting_date, party_type, party, company)
+		if not template_name: return
+
+		default_due_date = get_due_date_from_template(template_name, posting_date).strftime("%Y-%m-%d")
 		if not default_due_date:
 			return
 
@@ -316,7 +323,8 @@ def validate_due_date(posting_date, due_date, party_type, party, company):
 				msgprint(_("Note: Due / Reference Date exceeds allowed customer credit days by {0} day(s)")
 					.format(date_diff(due_date, default_due_date)))
 			else:
-				frappe.throw(_("Due / Reference Date cannot be after {0}").format(formatdate(default_due_date)))
+				frappe.throw(_("Due / Reference Date cannot be after {0}")
+					.format(formatdate(default_due_date)))
 
 @frappe.whitelist()
 def set_taxes(party, party_type, posting_date, company, customer_group=None, supplier_type=None,
@@ -353,6 +361,34 @@ def set_taxes(party, party_type, posting_date, company, customer_group=None, sup
 
 	return get_tax_template(posting_date, args)
 
+
+@frappe.whitelist()
+def get_pyt_term_template(party_name, party_type, company=None):
+	if party_type not in ("Customer", "Supplier"):
+		return
+
+	template = None
+	if party_type == 'Customer':
+		customer = frappe.db.get_value("Customer", party_name,
+			fieldname=['payment_terms', "customer_group"], as_dict=1)
+		template = customer.payment_terms
+
+		if not template and customer.customer_group:
+			template = frappe.db.get_value("Customer Group",
+				customer.customer_group, fieldname='payment_terms')
+	else:
+		supplier = frappe.db.get_value("Supplier", party_name,
+			fieldname=['payment_terms', "supplier_type"], as_dict=1)
+		template = supplier.payment_terms
+
+		if not template and supplier.supplier_type:
+			template = frappe.db.get_value("Supplier Type", supplier.supplier_type, fieldname='payment_terms')
+
+	if not template and company:
+		template = frappe.db.get_value("Company", company, fieldname='payment_terms')
+
+	return template
+
 def validate_party_frozen_disabled(party_type, party_name):
 	if party_type and party_name:
 		if party_type in ("Customer", "Supplier"):
@@ -373,10 +409,21 @@ def get_timeline_data(doctype, name):
 	from frappe.desk.form.load import get_communication_data
 
 	out = {}
+	fields = 'date(creation), count(name)'
+	after = add_years(None, -1).strftime('%Y-%m-%d')
+	group_by='group by date(creation)'
+
 	data = get_communication_data(doctype, name,
-		fields = 'date(creation), count(name)',
-		after = add_years(None, -1).strftime('%Y-%m-%d'),
-		group_by='group by date(creation)', as_dict=False)
+		fields=fields, after=after, group_by=group_by, as_dict=False)
+
+	# fetch and append data from Activity Log
+	data += frappe.db.sql("""select {fields}
+		from `tabActivity Log`
+		where reference_doctype="{doctype}" and reference_name="{name}"
+		and status!='Success' and creation > {after}
+		{group_by} order by creation desc
+		""".format(doctype=frappe.db.escape(doctype), name=frappe.db.escape(name), fields=fields,
+			group_by=group_by, after=after), as_dict=False)
 
 	timeline_items = dict(data)
 

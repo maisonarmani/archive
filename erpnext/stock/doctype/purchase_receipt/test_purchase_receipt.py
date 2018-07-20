@@ -11,6 +11,7 @@ from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchas
 from erpnext import set_perpetual_inventory
 from erpnext.stock.doctype.serial_no.serial_no import SerialNoDuplicateError
 from erpnext.accounts.doctype.account.test_account import get_inventory_account
+from erpnext.stock.doctype.item.test_item import make_item
 
 class TestPurchaseReceipt(unittest.TestCase):
 	def setUp(self):
@@ -202,6 +203,22 @@ class TestPurchaseReceipt(unittest.TestCase):
 			"delivery_document_no": return_pr.name
 		})
 
+	def test_purchase_return_for_multi_uom(self):
+		item_code = "_Test Purchase Return For Multi-UOM"
+		if not frappe.db.exists('Item', item_code):
+			item = make_item(item_code, {'stock_uom': 'Box'})
+			row = item.append('uoms', {
+				'uom': 'Unit',
+				'conversion_factor': 0.1
+			})
+			row.db_update()
+
+		pr = make_purchase_receipt(item_code=item_code, qty=1, uom="Box", conversion_factor=1.0)
+		return_pr = make_purchase_receipt(item_code=item_code, qty=-10, uom="Unit",
+			stock_uom="Box", conversion_factor=0.1, is_return=1, return_against=pr.name)
+
+		self.assertEquals(abs(return_pr.items[0].stock_qty), 1.0)
+
 	def test_closed_purchase_receipt(self):
 		from erpnext.stock.doctype.purchase_receipt.purchase_receipt import update_purchase_receipt_status
 
@@ -254,12 +271,11 @@ class TestPurchaseReceipt(unittest.TestCase):
 
 	def test_not_accept_duplicate_serial_no(self):
 		from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry
-		from erpnext.stock.doctype.item.test_item import make_item
 		from erpnext.stock.doctype.delivery_note.test_delivery_note import create_delivery_note
 
 		item_code = frappe.db.get_value('Item', {'has_serial_no': 1})
 		if not item_code:
-			item = make_item("Test Serial Item 1", dict(has_serial_no = 1))
+			item = make_item("Test Serial Item 1", dict(has_serial_no=1))
 			item_code = item.name
 
 		serial_no = random_string(5)
@@ -273,10 +289,12 @@ class TestPurchaseReceipt(unittest.TestCase):
 			serial_no=serial_no, basic_rate=100, do_not_submit=True)
 		self.assertRaises(SerialNoDuplicateError, se.submit)
 
+
 def get_gl_entries(voucher_type, voucher_no):
 	return frappe.db.sql("""select account, debit, credit
 		from `tabGL Entry` where voucher_type=%s and voucher_no=%s
 		order by account desc""", (voucher_type, voucher_no), as_dict=1)
+
 
 def make_purchase_receipt(**args):
 	frappe.db.set_value("Buying Settings", None, "allow_multiple_items", 1)
@@ -304,9 +322,10 @@ def make_purchase_receipt(**args):
 		"rejected_qty": rejected_qty,
 		"rejected_warehouse": args.rejected_warehouse or "_Test Rejected Warehouse - _TC" if rejected_qty != 0 else "",
 		"rate": args.rate or 50,
-		"conversion_factor": 1.0,
+		"conversion_factor": args.conversion_factor or 1.0,
 		"serial_no": args.serial_no,
-		"stock_uom": "_Test UOM"
+		"stock_uom": args.stock_uom or "_Test UOM",
+		"uom": args.uom or "_Test UOM"
 	})
 
 	if not args.do_not_save:
