@@ -52,11 +52,6 @@ email_append_to = ["Job Applicant", "Lead", "Opportunity", "Issue"]
 calendars = ["Task", "Production Order", "Leave Application", "Sales Order", "Holiday List", "Course Schedule"]
 
 
-<<<<<<< HEAD
-fixtures = ["Web Form","Email Alert", "Custom Field", "Role", "Workflow","Workflow Action", "Workflow State"]
-=======
->>>>>>> 8ca5940f76b2ebbd9f4a558ebe9d90334bff2628
-
 domains = {
 	'Agriculture': 'erpnext.domains.agriculture',
 	'Distribution': 'erpnext.domains.distribution',
