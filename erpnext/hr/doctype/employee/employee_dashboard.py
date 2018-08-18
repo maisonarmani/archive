@@ -24,7 +24,7 @@ def get_data():
 			},
 			{
 				'label': _('Evaluation'),
-				'items': ['Appraisal']
+				'items': ['Appraisal', 'Commendations and Violations']
 			}
 		]
 	}

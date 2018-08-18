@@ -136,10 +136,11 @@ class ExpenseClaim(AccountsController):
 			)
 
 		for data in self.advances:
+			refund_amount = frappe.get_doc("Employee Advance", data.employee_advance).get('refund_amount')
 			gl_entry.append(
 				self.get_gl_dict({
 					"account": data.advance_account,
-					"credit": data.allocated_amount,
+					"credit": data.allocated_amount - refund_amount,
 					"credit_in_account_currency": data.allocated_amount,
 					"against": ",".join([d.default_account for d in self.expenses]),
 					"party_type": "Employee",
@@ -221,7 +222,9 @@ class ExpenseClaim(AccountsController):
 				frappe.throw(_("Row {0}# Allocated amount {1} cannot be greater than unclaimed amount {2}")
 					.format(d.idx, d.allocated_amount, d.unclaimed_amount))
 
-			self.total_advance_amount += flt(d.allocated_amount)
+			refund_amount = frappe.get_doc("Employee Advance", d.employee_advance).get('refund_amount')
+
+			self.total_advance_amount += flt(d.allocated_amount - refund_amount)
 
 		if self.total_advance_amount:
 			if flt(self.total_advance_amount) > flt(self.total_claimed_amount):

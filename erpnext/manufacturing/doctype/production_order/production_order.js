@@ -329,6 +329,26 @@ erpnext.production_order = {
 					start_btn.addClass('btn-primary');
 				}
 			}
+			// User defined
+			if((!['Resolved','Not Started'].includes(frm.doc.status)) && frm.doc.docstatus == 1){
+				// Are you a financial controller
+				if(frappe.user_roles.includes("Internal Auditor")){
+					frm.add_custom_button(__('Resolve'), function(){
+						frappe.confirm("Are you sure you want to resolve this production order?", function(){
+							frappe.call({
+								method: "tools_box.controllers.api.resolve_production_order",
+								args: {
+									doctype: cur_frm.doctype,
+									docname: cur_frm.docname
+								},
+								callback:function (message) {
+									cur_frm.reload_doc()
+								}
+							})
+						})
+					}, __("Status"))
+				}
+			}
 
 			if(!frm.doc.skip_transfer){
 				if ((flt(doc.produced_qty) < flt(doc.material_transferred_for_manufacturing))

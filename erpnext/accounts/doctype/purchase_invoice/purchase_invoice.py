@@ -38,6 +38,9 @@ class PurchaseInvoice(BuyingController):
 			'overflow_type': 'billing'
 		}]
 
+	def invoice_is_blocked(self):
+		return False
+
 	def validate(self):
 		if not self.is_opening:
 			self.is_opening = 'No'
@@ -126,6 +129,7 @@ class PurchaseInvoice(BuyingController):
 			if d.purchase_order and not d.purchase_order in check_list and not d.purchase_receipt:
 				check_list.append(d.purchase_order)
 				check_for_closed_status('Purchase Order', d.purchase_order)
+
 
 	def validate_with_previous_doc(self):
 		super(PurchaseInvoice, self).validate_with_previous_doc({

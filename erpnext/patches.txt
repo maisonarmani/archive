@@ -143,7 +143,6 @@ erpnext.patches.v5_0.set_appraisal_remarks
 erpnext.patches.v5_0.update_time_log_title
 erpnext.patches.v7_0.create_warehouse_nestedset
 erpnext.patches.v7_0.merge_account_type_stock_and_warehouse_to_stock
-erpnext.patches.v7_0.set_is_group_for_warehouse
 erpnext.patches.v7_2.stock_uom_in_selling
 erpnext.patches.v4_2.repost_sle_for_si_with_no_warehouse
 erpnext.patches.v5_0.newsletter
@@ -465,9 +464,7 @@ erpnext.patches.v9_0.update_employee_loan_details
 erpnext.patches.v9_2.delete_healthcare_domain_default_items
 erpnext.patches.v9_1.create_issue_opportunity_type
 erpnext.patches.v9_2.rename_translated_domains_in_en
-<<<<<<< HEAD
 #erpnext.patches.v9_2.student_admission_childtable_migrate # pending for 2016
-=======
 erpnext.patches.v9_0.set_shipping_type_for_existing_shipping_rules
 erpnext.patches.v9_0.update_multi_uom_fields_in_material_request
 erpnext.patches.v9_2.repost_reserved_qty_for_production
@@ -505,4 +502,3 @@ erpnext.patches.v10_0.set_qty_in_transactions_based_on_serial_no_input
 erpnext.patches.v10_0.show_leaves_of_all_department_members_in_calendar
 erpnext.patches.v10_0.update_status_in_purchase_receipt
 erpnext.patches.v10_0.update_address_template_for_india
->>>>>>> 8ca5940f76b2ebbd9f4a558ebe9d90334bff2628

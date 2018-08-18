@@ -96,15 +96,18 @@ def get_target_distribution_details(filters):
 
 	return target_details
 
-#Get actual details from gl entry
-def get_actual_details(name, filters):
-	cond = "1=1"
-	budget_against=filters.get("budget_against").replace(" ", "_").lower()
 
-	if filters.get("budget_against") == "Cost Center":
-		cc_lft, cc_rgt = frappe.db.get_value("Cost Center", name, ["lft", "rgt"])
-		cond = "lft>='{lft}' and rgt<='{rgt}'".format(lft = cc_lft, rgt=cc_rgt)
-	
+#
+# Get actual details from gl entry
+def get_actual_details(name, filters):
+    cond = "1=1"
+    budget_against = filters.get("budget_against").replace(" ", "_").lower()
+
+    if filters.get("budget_against") == "Cost Center":
+        cc_lft, cc_rgt = frappe.db.get_value("Cost Center", name, ["lft", "rgt"])
+        cond = "lft>='{lft}' and rgt<='{rgt}'".format(lft=cc_lft, rgt=cc_rgt)
+
+	# Bug fix for budget variance report
 	ac_details = frappe.db.sql("""select gl.account, gl.debit, gl.credit,
 		MONTHNAME(gl.posting_date) as month_name, b.{budget_against} as budget_against
 		from `tabGL Entry` gl, `tabBudget Account` ba, `tabBudget` b
@@ -115,9 +118,9 @@ def get_actual_details(name, filters):
 			and b.{budget_against} = gl.{budget_against}
 			and gl.fiscal_year=%s 
 			and b.{budget_against}=%s
-			and exists(select name from `tab{tab}` where name=gl.{budget_against} and {cond})
-	""".format(tab = filters.budget_against, budget_against = budget_against, cond = cond),
-	(filters.fiscal_year, name), as_dict=1)
+			and exists(select name from `tab{tab}` where name=gl.{budget_against} and {cond}) group by gl.name
+	""".format(tab=filters.budget_against, budget_against=budget_against, cond=cond),
+							   (filters.fiscal_year, name), as_dict=1)
 
 	cc_actual_details = {}
 	for d in ac_details:

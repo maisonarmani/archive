@@ -342,6 +342,7 @@ def make_status_as_paid(doc, method):
 				doc.db_set('status', 'Paid')
 				frappe.db.commit()
 
+
 def get_dummy_message(doc):
 	return frappe.render_template("""{% if doc.contact_person -%}
 <p>Dear {{ doc.contact_person }},</p>

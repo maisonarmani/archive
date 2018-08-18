@@ -198,8 +198,7 @@ class SalesOrder(SellingController):
 	def check_credit_limit(self):
 		# if bypass credit limit check is set to true (1) at sales order level,
 		# then we need not to check credit limit and vise versa
-		if not cint(frappe.db.get_value("Customer", self.customer, "bypass_credit_limit_check_at_sales_order")):
-			check_credit_limit(self.customer, self.company)
+		check_credit_limit(self.customer, self.company)
 
 	def check_nextdoc_docstatus(self):
 		# Checks Delivery Note
@@ -391,6 +390,21 @@ def get_list_context(context=None):
 	})
 
 	return list_context
+
+
+
+@frappe.whitelist()
+def get_discount(customer, transation_date):
+	d = getdate(transation_date)
+
+	ds_status = frappe.db.sql("SELECT entitled_discount_ FROM `tabCustomer` WHERE"
+								   " name= '{1}' AND DATE('{0}') >= discount_start  AND DATE('{0}') <= discount_end".format(d,customer))
+	if ds_status:
+		return ds_status[0][0]
+	else:
+		return 0
+
+
 
 @frappe.whitelist()
 def close_or_unclose_sales_orders(names, status):

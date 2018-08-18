@@ -3,6 +3,8 @@
 
 {% include 'erpnext/selling/sales_common.js' %}
 
+
+var default_warehouse = "";
 frappe.ui.form.on("Sales Order", {
 	setup: function(frm) {
 		frm.custom_make_buttons = {
@@ -32,9 +34,23 @@ frappe.ui.form.on("Sales Order", {
 			}
 		});
 
+		if (frm.doc.administrative_zone && frm.doc.administrative_zone  != ""){
+			frappe.call({
+				method: "tools_box.tools_box.doctype.administrative_zone_setup.administrative_zone_setup.get_administrative_defaults",
+				args:{ administrative_zone: frm.doc.administrative_zone },
+				callback: function (result) {
+					if(result.message[0]){
+						default_warehouse = result.message[0].default_warehouse;
+						reset_warehouse();
+					}
+				}
+			});
+		}
 		erpnext.queries.setup_warehouse_query(frm);
 	},
 
+    customer:get_discount_n_defaul,
+    transaction_date: get_discount_n_defaul,
 	delivery_date: function(frm) {
 		$.each(frm.doc.items || [], function(i, d) {
 			if(!d.delivery_date) d.delivery_date = frm.doc.delivery_date;
@@ -43,11 +59,57 @@ frappe.ui.form.on("Sales Order", {
 	},
 
 	onload_post_render: function(frm) {
-		frm.get_field("items").grid.set_multiple_add("item_code", "qty");
+		cur_frm.get_field("items").grid.set_multiple_add("item_code", "qty");
 	}
 });
 
+function get_discount_n_defaul(frm){
+	if (cur_frm.doc.customer && frm.doc.customer != "") {
+		frappe.call({
+			method: "erpnext.selling.doctype.sales_order.sales_order.get_discount",
+			args: {
+				"customer": frm.doc.customer,
+				"transation_date": frm.doc.transaction_date,
+			},
+			callback: function (r) {
+				if (r.message) {
+					frappe.model.set_value(frm.doctype, frm.docname, "additional_discount_percentage", r.message);
+				}
+				else {
+					frappe.model.set_value(frm.doctype, frm.docname, "additional_discount_percentage", 0);
+				}
+			}
+		})
+	}
+	// Addition
+	frappe.call({
+		method: "tools_box.tools_box.doctype.administrative_zone_setup.administrative_zone_setup.get_administrative_defaults",
+		args:{ administrative_zone: frm.doc.administrative_zone },
+		callback: function (result) {
+			if(result.message[0]){
+				default_warehouse = result.message[0].default_warehouse;
+				reset_warehouse();
+			}
+		}
+	});
+
+}
+function reset_warehouse(){
+	//Don't modify what you don't understand
+	if (default_warehouse){
+		setTimeout(function(){
+			cur_frm.get_field("items").grid.grid_rows.forEach((v)=>{
+				frappe.model.set_value(v.doc.doctype, v.doc.name, "warehouse",default_warehouse);
+				cur_frm.get_field("items").grid.toggle_enable('warehouse',false);
+			})
+		},1500);
+	}
+}
+
 frappe.ui.form.on("Sales Order Item", {
+	items_add(frm){
+		reset_warehouse();
+	},
 	item_code: function(frm,cdt,cdn) {
 		var row = locals[cdt][cdn];
 		if (frm.doc.delivery_date) {
@@ -56,6 +118,7 @@ frappe.ui.form.on("Sales Order Item", {
 		} else {
 			frm.script_manager.copy_from_first_row("items", row, ["delivery_date"]);
 		}
+		reset_warehouse();
 	},
 	delivery_date: function(frm, cdt, cdn) {
 		if(!frm.doc.delivery_date) {
@@ -143,12 +206,6 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 						function() { me.make_payment_entry() }, __("Make"));
 				}
 
-				// authority to load
-				if(!doc.alt && allow_delivery && this.frm.has_perm("submit")) {
-					cur_frm.add_custom_button(__('Authority to Load'), this.make_authority_to_load, __("Make"));
-				}
-
-
 				// maintenance
 				if(flt(doc.per_delivered, 2) < 100 &&
 						["Sales", "Shopping Cart"].indexOf(doc.order_type)===-1) {
@@ -167,6 +224,12 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 				if(!doc.subscription) {
 					this.frm.add_custom_button(__('Subscription'), function() {
 						erpnext.utils.make_subscription(doc.doctype, doc.name)
+					}, __("Make"))
+				}
+
+				if(!doc.atl) {
+					this.frm.add_custom_button(__('Authority to Load'), function() {
+						me.make_authority_to_load()
 					}, __("Make"))
 				}
 
@@ -281,12 +344,6 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 		});
 	},
 
-	make_authority_to_load: function() {
-		frappe.model.open_mapped_doc({
-			method: "tools_box._selling.doctype.authority_to_load.authority_to_load.make_authority_to_load",
-			frm: cur_frm
-		})
-	},
 	order_type: function() {
 		this.frm.fields_dict.items.grid.toggle_reqd("delivery_date", this.frm.doc.order_type == "Sales");
 	},
@@ -378,6 +435,12 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 		})
 	},
 
+	make_authority_to_load: function() {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.selling.doctype.sales_order.sales_order.make_authority_to_load",
+			frm: this.frm
+		})
+	},
 	make_maintenance_schedule: function() {
 		frappe.model.open_mapped_doc({
 			method: "erpnext.selling.doctype.sales_order.sales_order.make_maintenance_schedule",

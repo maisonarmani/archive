@@ -222,6 +222,7 @@ class SalesInvoice(SellingController):
 			}
 		])
 
+
 	def check_credit_limit(self):
 		from erpnext.selling.doctype.customer.customer import check_credit_limit
 
