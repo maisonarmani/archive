@@ -23,6 +23,22 @@ frappe.ui.form.on("Vehicle Log", {
 			}, __("Make"));
 			frm.page.set_inner_btn_group_as_primary(__("Make"));
 		}
+
+
+        if(frm.doc.docstatus == 1) {
+            frm.add_custom_button(__('Employee Advance'), function() {
+                frm.events.empl_adv(frm)
+            }, __("Make"));
+            frm.page.set_inner_btn_group_as_primary(__("Make"));
+        }
+
+
+        if(frm.doc.docstatus == 1) {
+            frm.add_custom_button(__('Purchase Order'), function() {
+                frm.events.purchase_order(frm)
+            }, __("Make"));
+            frm.page.set_inner_btn_group_as_primary(__("Make"));
+        }
 	},
 
 	expense_claim: function(frm){
@@ -36,6 +52,31 @@ frappe.ui.form.on("Vehicle Log", {
 				frappe.set_route('Form', 'Expense Claim', r.message.name);
 			}
 		});
-	}
+	},
+    empl_adv: function(frm){
+        frappe.call({
+            method: "erpnext.hr.doctype.vehicle_log.vehicle_log.make_employee_advance",
+            args:{
+                docname: frm.doc.name
+            },
+            callback: function(r){
+                var doc = frappe.model.sync(r.message);
+                frappe.set_route('Form', 'Employee Advance', r.message.name);
+            }
+        });
+    },
+    purchase_order: function(frm){
+        frappe.call({
+            method: "erpnext.hr.doctype.vehicle_log.vehicle_log.make_purchase_order",
+            args:{
+                docname: frm.doc.name
+            },
+            callback: function(r){
+                var doc = frappe.model.sync(r.message);
+                frappe.set_route('Form', 'Purchase Order', r.message.name);
+            }
+        });
+    }
+
 });
 

@@ -13,3 +13,10 @@ class HRSettings(Document):
 		from erpnext.setup.doctype.naming_series.naming_series import set_by_naming_series
 		set_by_naming_series("Employee", "employee_number",
 			self.get("emp_created_by")=="Naming Series", hide_name_field=True)
+
+
+
+@frappe.whitelist(True)
+def reset_salary_structure():
+	frappe.db.sql("UPDATE `tabSalary Detail` SET amount = 0")
+	return True

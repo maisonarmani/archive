@@ -34,18 +34,7 @@ frappe.ui.form.on("Sales Order", {
 			}
 		});
 
-		if (frm.doc.administrative_zone && frm.doc.administrative_zone  != ""){
-			frappe.call({
-				method: "tools_box.tools_box.doctype.administrative_zone_setup.administrative_zone_setup.get_administrative_defaults",
-				args:{ administrative_zone: frm.doc.administrative_zone },
-				callback: function (result) {
-					if(result.message[0]){
-						default_warehouse = result.message[0].default_warehouse;
-						reset_warehouse();
-					}
-				}
-			});
-		}
+		get_default(frm);
 		erpnext.queries.setup_warehouse_query(frm);
 	},
 
@@ -63,6 +52,21 @@ frappe.ui.form.on("Sales Order", {
 	}
 });
 
+function get_default(frm){
+
+    if (frm.doc.administrative_zone != undefined && frm.doc.administrative_zone != "" && frm.doc.customer != undefined){
+        frappe.call({
+            method: "tools_box.tools_box.doctype.administrative_zone_setup.administrative_zone_setup.get_administrative_defaults",
+            args:{ administrative_zone: frm.doc.administrative_zone },
+            callback: function (result) {
+                if(result.message[0]){
+                    default_warehouse = result.message[0].default_warehouse;
+                    reset_warehouse();
+                }
+            }
+        });
+    }
+}
 function get_discount_n_defaul(frm){
 	if (cur_frm.doc.customer && frm.doc.customer != "") {
 		frappe.call({
@@ -81,17 +85,8 @@ function get_discount_n_defaul(frm){
 			}
 		})
 	}
-	// Addition
-	frappe.call({
-		method: "tools_box.tools_box.doctype.administrative_zone_setup.administrative_zone_setup.get_administrative_defaults",
-		args:{ administrative_zone: frm.doc.administrative_zone },
-		callback: function (result) {
-			if(result.message[0]){
-				default_warehouse = result.message[0].default_warehouse;
-				reset_warehouse();
-			}
-		}
-	});
+
+	get_default(frm)
 
 }
 function reset_warehouse(){
